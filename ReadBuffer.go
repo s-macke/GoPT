@@ -1,52 +1,84 @@
 package main
 
 import (
+	"bufio"
 	_ "embed"
+	"encoding/binary"
+	"errors"
+	"io"
 	"math"
 	"os"
-	"reflect"
-	"unsafe"
 )
 
 type ReadBuffer struct {
-	b      []byte
 	offset int
+	file   *os.File
+	reader *bufio.Reader
+	eof    bool
 }
 
-func NewReadBuffer(b []byte) *ReadBuffer {
-	return &ReadBuffer{
-		b:      b,
-		offset: 0,
+func (rb *ReadBuffer) checkError(err error) {
+	if err == nil {
+		return
 	}
+	if errors.Is(err, io.EOF) {
+		rb.eof = true
+		return
+	}
+	panic(err)
 }
 
-func NewReadBufferFromFile(filename string) *ReadBuffer {
-	b, err := os.ReadFile(filename)
+func NewReadBufferFromFile2(filename string) *ReadBuffer {
+	file, err := os.Open(filename)
+
 	if err != nil {
 		panic(err)
 	}
 	return &ReadBuffer{
-		b:      b,
+		file:   file,
+		eof:    false,
 		offset: 0,
 	}
 }
 
-func (rb *ReadBuffer) Length() int {
-	return len(rb.b)
+func (rb *ReadBuffer) EOF() bool {
+	return rb.eof
+}
+
+func (rb *ReadBuffer) SkipNBytes(n int) {
+
+	_, err := rb.file.Seek(int64(n), io.SeekCurrent)
+	rb.checkError(err)
+	rb.offset = rb.offset + n
 }
 
 func (rb *ReadBuffer) ReadNextByte() byte {
-	if rb.offset >= len(rb.b) {
-		return 0
-	}
-	b := rb.b[rb.offset]
+	var bytes [1]byte
+	_, err := rb.file.Read(bytes[:])
+	rb.checkError(err)
 	rb.offset++
-	return b
+	return bytes[0]
+}
+
+func (rb *ReadBuffer) ReadNextInt(bytes int) int {
+	var value = 0
+	for i := 0; i < bytes; i++ {
+		value |= int(rb.ReadNextByte()) << (8 * i)
+	}
+	return value
+}
+
+func (rb *ReadBuffer) Length() int {
+	info, err := rb.file.Stat()
+	rb.checkError(err)
+	return int(info.Size())
 }
 
 func (rb *ReadBuffer) ReadSlice(n int) []byte {
+	b := make([]byte, n)
+	_, err := rb.file.Read(b)
+	rb.checkError(err)
 	//fmt.Println("ReadSlice", n, rb.offset, len(rb.b))
-	b := rb.b[rb.offset : rb.offset+n]
 	rb.offset = rb.offset + n
 	return b
 }
@@ -61,7 +93,7 @@ func (rb *ReadBuffer) ReadSliceAsString(n int) string {
 	return string(bytes)
 }
 
-func clen(n []byte) int {
+func clen2(n []byte) int {
 	for i := 0; i < len(n); i++ {
 		if n[i] == 0 {
 			return i
@@ -71,35 +103,8 @@ func clen(n []byte) int {
 }
 func (rb *ReadBuffer) ReadSliceAsNullTerminatedString(n int) string {
 	bytes := rb.ReadSlice(n)
-	length := clen(bytes)
+	length := clen2(bytes)
 	return string(bytes[:length])
-}
-
-func (rb *ReadBuffer) NewReadBuffer(n int) *ReadBuffer {
-	b := rb.b[rb.offset : rb.offset+n]
-	rb.offset = rb.offset + n
-	return NewReadBuffer(b)
-}
-
-func (rb *ReadBuffer) NewReadBufferAt(offset int) *ReadBuffer {
-	b := rb.b[offset:]
-	return NewReadBuffer(b)
-}
-
-func (rb *ReadBuffer) SkipNBytes(n int) {
-	rb.offset = rb.offset + n
-}
-
-func (rb *ReadBuffer) EOF() bool {
-	return rb.offset >= len(rb.b)
-}
-
-func (rb *ReadBuffer) ReadNextInt(bytes int) int {
-	var value = 0
-	for i := 0; i < bytes; i++ {
-		value |= int(rb.ReadNextByte()) << (8 * i)
-	}
-	return value
 }
 
 func (rb *ReadBuffer) ReadNextFloat32() float32 {
@@ -107,17 +112,9 @@ func (rb *ReadBuffer) ReadNextFloat32() float32 {
 }
 
 func (rb *ReadBuffer) ReadNextAsFloat32Array(n int) []float32 {
-	data := *(*([]float32))(unsafe.Pointer(&rb.b))
-
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-	sh.Len = n
-	sh.Cap = n
-	sh.Data += uintptr(rb.offset)
-
-	/*
-		sh = (*reflect.SliceHeader)(unsafe.Pointer(data))
-		fmt.Printf("%+v\n", sh)
-	*/
+	floats := make([]float32, n)
+	err := binary.Read(rb.file, binary.LittleEndian, &floats)
+	rb.checkError(err)
 	rb.offset += n * 4
-	return data
+	return floats
 }

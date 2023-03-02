@@ -15,7 +15,7 @@ func (m *Model) matchToTokens(wv []float32, o []match_t, num int, temp float32) 
 	t := make([]match_t, NUMTOKENS)
 
 	for i := 0; i < NUMTOKENS; i++ {
-		cossim := conv1dline(0, wv, m.wte.GetRow2D(i)) // cosine similarity
+		cossim := scalarProduct(wv, m.wte.GetRow2D(i)) // cosine similarity
 		t[i].prob = cossim / temp
 		t[i].token = i
 	}

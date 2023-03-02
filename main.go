@@ -1,7 +1,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/debug"
 )
 
 func LoadSmall() *Model {
@@ -21,16 +23,22 @@ func LoadLarge() *Model {
 }
 
 func main() {
-	//debug.SetMemoryLimit(1 << 30) // GB
+	debug.SetMemoryLimit(1 << 30) // GB
 	LoadVocab("gpt2vocab.txt")
-	m := LoadSmall()
-	//m := LoadLarge()
+	var m *Model
+
+	if len(os.Args) > 1 && os.Args[1] == "large" {
+		m = LoadLarge()
+	} else {
+		m = LoadSmall()
+	}
 
 	// some experiments with word vectors
 	// similarity(m)
 	// relation(m)
 
 	tokens := Translate(" Suddenly, a magical floppy disk")
+	m.SetTemperature(1.2)
 	m.SetTokens(tokens)
 	m.Run()
 }

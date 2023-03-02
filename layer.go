@@ -34,9 +34,6 @@ func newLayer(WVSIZE int, CTXSIZE int, NUMHEADS int) *layer {
 // x is the input vector, the word embedding of the current token
 // slot is the index of the current token in the context
 func (l *layer) runLayer(x []float32, slot int) {
-	// ...
-	// attn := m.layers[layer].attn_cattn_w.MatMul(m.layers[layer].attn_cattn_b)
-	// ...
 	var query = make([]float32, l.WVSIZE) // query vectors are only needed locally
 	var tmp = make([]float32, l.WVSIZE)   // tmp space for operations
 	var xn = make([]float32, l.WVSIZE)
@@ -48,7 +45,7 @@ func (l *layer) runLayer(x []float32, slot int) {
 	b := l.attn_cattn_b
 	w := l.attn_cattn_w
 	for i := 0; i < l.WVSIZE*3; i++ {
-		a := conv1dline(b.data[i], xn[:], w.GetRow2D(i))
+		a := b.data[i] + scalarProduct(xn[:], w.GetRow2D(i))
 
 		if i < l.WVSIZE {
 			query[i] = a
@@ -64,7 +61,7 @@ func (l *layer) runLayer(x []float32, slot int) {
 	for h := 0; h < l.NUMHEADS; h++ {
 		// query * keys = attentions
 		for i := 0; i <= slot; i++ {
-			a := conv1dline(0., query[h*HEADSIZE:(h+1)*HEADSIZE], l.key[i*l.WVSIZE+h*HEADSIZE:i*l.WVSIZE+(h+1)*HEADSIZE])
+			a := scalarProduct(query[h*HEADSIZE:(h+1)*HEADSIZE], l.key[i*l.WVSIZE+h*HEADSIZE:i*l.WVSIZE+(h+1)*HEADSIZE])
 			att[i] = a * RSQRT_HEADSIZE
 		}
 
@@ -90,7 +87,7 @@ func (l *layer) runLayer(x []float32, slot int) {
 		// apply attentions to values
 		for j := 0; j < HEADSIZE; j++ {
 			offset := (j + h*HEADSIZE) * CTXSIZE
-			tmp[h*HEADSIZE+j] = conv1dline(0., att[0:slot+1], l.value[offset:offset+(slot+1)])
+			tmp[h*HEADSIZE+j] = scalarProduct(att[0:slot+1], l.value[offset:offset+(slot+1)])
 		}
 	}
 
@@ -98,7 +95,7 @@ func (l *layer) runLayer(x []float32, slot int) {
 	w = l.attn_cproj_w
 	b = l.attn_cproj_b
 	for i := 0; i < l.WVSIZE; i++ {
-		x[i] += conv1dline(b.data[i], tmp[:], w.data[l.WVSIZE*i:l.WVSIZE*(i+1)])
+		x[i] += b.data[i] + scalarProduct(tmp[:], w.data[l.WVSIZE*i:l.WVSIZE*(i+1)])
 	}
 
 	// normalize again
@@ -110,19 +107,14 @@ func (l *layer) runLayer(x []float32, slot int) {
 	mlp := make([]float32, l.WVSIZE*4)
 
 	for i := 0; i < l.WVSIZE*4; i++ {
-		a := conv1dline(b.data[i], xn[:], w.data[l.WVSIZE*i:l.WVSIZE*(i+1)])
-		// both functions are almost identical
-		//if(!palette) {
+		a := b.data[i] + scalarProduct(xn[:], w.data[l.WVSIZE*i:l.WVSIZE*(i+1)])
 		a = 0.5 * a * (1. + float32(math.Tanh(float64(0.7978845676080871*(a+0.044715*a*a*a))))) // gelu2 ?
-		//} else {
-		//a = a * (1. / (1. + float32(math.Exp(float64(-a*1.702)))))
-		//} // gelu2 (igpt)
 		mlp[i] = a
 	}
 
 	w = l.mlp_cproj_w
 	b = l.mlp_cproj_b
 	for i := 0; i < l.WVSIZE; i++ {
-		x[i] += conv1dline(b.data[i], mlp[:], w.data[l.WVSIZE*4*i:l.WVSIZE*4*(i+1)])
+		x[i] += b.data[i] + scalarProduct(mlp[:], w.data[l.WVSIZE*4*i:l.WVSIZE*4*(i+1)])
 	}
 }

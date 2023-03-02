@@ -10,7 +10,6 @@ type tensor struct {
 	data  []float32
 }
 
-//go:noinline
 func (t *tensor) Transpose() {
 	if len(t.shape) != 2 {
 		panic("Transpose: len(t.shape) != 2")
@@ -81,11 +80,12 @@ func Normalize(o, x, b, g []float32) {
 	}
 }
 
-func conv1dline(a float32, v []float32, m []float32) float32 {
+func scalarProduct(v []float32, m []float32) float32 {
 	if len(v) != len(m) {
-		panic("conv1dline: len(v) != len(m)")
+		panic("scalarProduct: len(v) != len(m)")
 	}
 	l := len(v)
+	var a float32 = 0
 	for i := 0; i < l; i++ {
 		a += v[i] * m[i]
 	}

@@ -23,7 +23,6 @@ func LoadBin(filename string) {
 		if buffer.EOF() {
 			break
 		}
-		//fmt.Println("-----", i, "-----")
 		buffer.SkipNBytes(4)
 		t := tensor{}
 		tensors = append(tensors, &t)
@@ -33,21 +32,14 @@ func LoadBin(filename string) {
 		}
 		n_dims := buffer.ReadNextInt(4)
 		str_length := buffer.ReadNextInt(4)
-		//fmt.Println("type:", type_id)
-		//fmt.Println("shape:", n_dims)
-		//fmt.Println(str_length)
 		size := 1
 		for i := 0; i < n_dims; i++ {
 			dim := buffer.ReadNextInt(4)
 			t.shape = append(t.shape, dim)
 			size *= dim
-			//fmt.Print(dim, " ")
 		}
-		//fmt.Println()
 		name := buffer.ReadSliceAsString(str_length)
 		t.name = name
-		//fmt.Println(name)
-		//fmt.Println(size, "parameters")
 		var memstats runtime.MemStats
 		runtime.ReadMemStats(&memstats)
 		fmt.Println("Loading", name, t.shape, "type", type_id, "Memory:", memstats.Alloc/1024/1024, "MB")

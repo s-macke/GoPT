@@ -4,36 +4,10 @@ import (
 	"fmt"
 )
 
-/*
-// not used yet! we'll support several simultaneous contexts in the future
-typedef struct {
-  token_t*in;
-  float*k;
-  float*v;
-  int lgt;
-  int validlgt;
-} context_t;
-*/
-
-type GPT2SIZE int64
-
-const (
-	Small  GPT2SIZE = 0
-	Medium GPT2SIZE = 1
-	Large  GPT2SIZE = 2
-)
-
 type match_t struct {
 	prob  float32
 	token int
 }
-
-// hparams for each model
-const NUMTOKENS = 50257
-const MAXNUMMATCHES = 256
-const CTXSIZE = 1024
-const HEADSIZE = 64
-const RSQRT_HEADSIZE = 1. / 8.
 
 type Model struct {
 	WVSIZE    int
@@ -67,12 +41,11 @@ func NewModel(gpt2size GPT2SIZE) *Model {
 	}
 	m.currwv = make([]float32, m.WVSIZE)
 
-	m.temperature = 1.2
+	m.temperature = 1.0
 
 	m.matchlist = make([]match_t, MAXNUMMATCHES)
 
 	m.emptytoken = Translate("<|endoftext|>")[0]
-	fmt.Println("emptytoken", m.emptytoken)
 
 	m.SetTokens([]int{})
 
@@ -106,29 +79,8 @@ func NewModel(gpt2size GPT2SIZE) *Model {
 	return m
 }
 
-func (m *Model) SetParameters(gpt2size GPT2SIZE) {
-
-	switch gpt2size {
-	case Small:
-		// 117M model
-		m.WVSIZE = 768
-		m.NUMLAYERS = 12
-		m.NUMHEADS = 12 // WVSIZE / HEADSIZE
-
-	case Medium:
-		m.WVSIZE = 1024
-		m.NUMLAYERS = 24
-		m.NUMHEADS = 16 // WVSIZE / HEADSIZE
-
-	case Large:
-		m.WVSIZE = 1600
-		m.NUMLAYERS = 48
-		m.NUMHEADS = 25 // WVSIZE / HEADSIZE
-
-	default:
-		panic("unknown gpt2size")
-
-	}
+func (m *Model) SetTemperature(temperature float32) {
+	m.temperature = temperature
 }
 
 func (m *Model) SetTokens(tokens []int) {
@@ -142,7 +94,7 @@ func (m *Model) SetTokens(tokens []int) {
 }
 
 func (m *Model) Add(token1, token2, token3 int) {
-	//token1-token2+token3
+	//token1 - token2 + token3
 	wv := make([]float32, m.WVSIZE)
 	for i := 0; i < m.WVSIZE; i++ {
 		wv[i] = m.wte.Get2D(i, token1) - m.wte.Get2D(i, token2) + m.wte.Get2D(i, token3)
