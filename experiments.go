@@ -5,6 +5,18 @@ import (
 	"math"
 )
 
+func (m *Model) Add(token1, token2, token3 int) {
+	//token1 - token2 + token3
+	wv := make([]float32, m.WVSIZE)
+	for i := 0; i < m.WVSIZE; i++ {
+		wv[i] = m.wte.Get2D(i, token1) - m.wte.Get2D(i, token2) + m.wte.Get2D(i, token3)
+	}
+	m.matchToTokens(wv, m.matchlist, 20, 1.)
+	for i := 0; i < 20; i++ {
+		fmt.Println(vocab[m.matchlist[i].token])
+	}
+}
+
 // https://blog.esciencecenter.nl/king-man-woman-king-9a7fd2935a85
 func (m *Model) wordMath(str1, str2, str3 string) {
 	fmt.Println("-----", str1, str2, str3)

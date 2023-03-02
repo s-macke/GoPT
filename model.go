@@ -93,18 +93,6 @@ func (m *Model) SetTokens(tokens []int) {
 	m.here = len(tokens)
 }
 
-func (m *Model) Add(token1, token2, token3 int) {
-	//token1 - token2 + token3
-	wv := make([]float32, m.WVSIZE)
-	for i := 0; i < m.WVSIZE; i++ {
-		wv[i] = m.wte.Get2D(i, token1) - m.wte.Get2D(i, token2) + m.wte.Get2D(i, token3)
-	}
-	m.matchToTokens(wv, m.matchlist, 20, 1.)
-	for i := 0; i < 20; i++ {
-		fmt.Println(vocab[m.matchlist[i].token])
-	}
-}
-
 func (m *Model) RunModelForSlot(slot int) {
 	// token vector with positional encoding
 	for i := 0; i < m.WVSIZE; i++ {
