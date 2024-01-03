@@ -7,8 +7,8 @@ import (
 
 func (m *Model) Add(token1, token2, token3 int) {
 	//token1 - token2 + token3
-	wv := make([]float32, m.WVSIZE)
-	for i := 0; i < m.WVSIZE; i++ {
+	wv := make([]float32, m.hparams.WVSIZE)
+	for i := 0; i < m.hparams.WVSIZE; i++ {
 		wv[i] = m.wte.Get2D(i, token1) - m.wte.Get2D(i, token2) + m.wte.Get2D(i, token3)
 	}
 	m.matchToTokens(wv, m.matchlist, 20, 1.)
@@ -38,7 +38,7 @@ func compare(token1, token2 int, m *Model) float32 {
 	var dist1 float32 = 0
 	var dist2 float32 = 0
 	var sp float32 = 0
-	for i := 0; i < m.WVSIZE; i++ {
+	for i := 0; i < m.hparams.WVSIZE; i++ {
 		//diff := m.wte.Get2D(i, token1) - m.wte.Get2D(i, token2)
 		//dist1 += diff * diff
 		//sp += m.wte.Get2D(token1, i) * m.wte.Get2D(token2, i)
@@ -56,9 +56,9 @@ func similarity(m *Model) {
 	tokens = append(tokens, Translate(" Blue")[0])
 	tokens = append(tokens, Translate(" Green")[0])
 	tokens = append(tokens, Translate(" Red")[0])
-	tokens = append(tokens, Translate(" 1")[0])
-	tokens = append(tokens, Translate(" 2")[0])
-	tokens = append(tokens, Translate(" 3")[0])
+	tokens = append(tokens, Translate("1")[0])
+	tokens = append(tokens, Translate("2")[0])
+	tokens = append(tokens, Translate("3")[0])
 	for i := 0; i < len(tokens); i++ {
 		for j := 0; j < len(tokens); j++ {
 			fmt.Printf("%7.3f ", compare(tokens[i], tokens[j], m))
