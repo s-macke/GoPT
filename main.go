@@ -1,44 +1,40 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"runtime"
-	"runtime/debug"
 )
 
-func LoadSmall() *Model {
-	LoadBin("gpt2_117M.bin")
-	runtime.GC()
-	m := NewModel(Small)
-	runtime.GC()
-	return m
-}
-
-func LoadLarge() *Model {
-	LoadBin("gpt2_1558M.bin")
-	runtime.GC()
-	m := NewModel(Large)
-	runtime.GC()
-	return m
-}
-
 func main() {
-	debug.SetMemoryLimit(1 << 30) // GB
-	LoadVocab("gpt2vocab.txt")
-	var m *Model
+	// Check https://github.com/karpathy/llama2.c/blob/master/run.c
+	// https://github.com/mukel/llama2.java
+	// for the original code
 
-	if len(os.Args) > 1 && os.Args[1] == "large" {
-		m = LoadLarge()
-	} else {
-		m = LoadSmall()
+	//LoadBin("ggml-alpaca-7b-q4.bin")
+	//LoadGGML("llama-2-7b-chat.ggmlv3.q2_K.bin")
+	//LoadSafetensors("../llama2/gptq/gptq_model-4bit-128g.safetensors")
+	LoadSafetensors("mamba.safetensors")
+
+	runtime.GC()
+	for _, t := range bmodel.tensors {
+		t.ToFloat32()
 	}
 
-	// some experiments with word vectors
-	// similarity(m)
-	// relation(m)
+	os.Exit(1)
 
-	tokens := Translate(" Suddenly, a magical floppy disk")
-	m.SetTemperature(1.2)
-	m.SetTokens(tokens)
-	m.Run()
+	m := NewModel(bmodel.hparams)
+
+	tokens := Translate("Building a website can be done in 10 simple steps:")
+	fmt.Println(tokens)
+
+	// some experiments with word vectors
+	similarity(m)
+	relation(m)
+	/*
+		tokens := Translate(" Suddenly, a magical floppy disk")
+		m.SetTemperature(1.2)
+		m.SetTokens(tokens)
+		m.Run()
+	*/
 }

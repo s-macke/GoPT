@@ -11,7 +11,7 @@ import (
 )
 
 type ReadBuffer struct {
-	offset int
+	offset int64
 	file   *os.File
 	reader *bufio.Reader
 	eof    bool
@@ -28,7 +28,7 @@ func (rb *ReadBuffer) checkError(err error) {
 	panic(err)
 }
 
-func NewReadBufferFromFile2(filename string) *ReadBuffer {
+func NewReadBufferFromFile(filename string) *ReadBuffer {
 	file, err := os.Open(filename)
 
 	if err != nil {
@@ -45,9 +45,14 @@ func (rb *ReadBuffer) EOF() bool {
 	return rb.eof
 }
 
-func (rb *ReadBuffer) SkipNBytes(n int) {
+func (rb *ReadBuffer) Seek(offset int64) {
+	var err error
+	rb.offset, err = rb.file.Seek(offset, io.SeekStart)
+	rb.checkError(err)
+}
 
-	_, err := rb.file.Seek(int64(n), io.SeekCurrent)
+func (rb *ReadBuffer) SkipNBytes(n int64) {
+	_, err := rb.file.Seek(n, io.SeekCurrent)
 	rb.checkError(err)
 	rb.offset = rb.offset + n
 }
@@ -74,7 +79,7 @@ func (rb *ReadBuffer) Length() int {
 	return int(info.Size())
 }
 
-func (rb *ReadBuffer) ReadSlice(n int) []byte {
+func (rb *ReadBuffer) ReadSlice(n int64) []byte {
 	b := make([]byte, n)
 	_, err := rb.file.Read(b)
 	rb.checkError(err)
@@ -83,8 +88,15 @@ func (rb *ReadBuffer) ReadSlice(n int) []byte {
 	return b
 }
 
+func (rb *ReadBuffer) Align(n int) {
+	//fmt.Println("Align", n, rb.offset, len(rb.b))
+	if rb.offset%int64(n) != 0 {
+		rb.SkipNBytes(int64(n) - (rb.offset % int64(n)))
+	}
+}
+
 func (rb *ReadBuffer) ReadSliceAsString(n int) string {
-	bytes := rb.ReadSlice(n)
+	bytes := rb.ReadSlice(int64(n))
 	for i := 0; i < len(bytes); i++ {
 		if bytes[i] == 0 {
 			return string(bytes[:i])
@@ -102,7 +114,7 @@ func clen2(n []byte) int {
 	return len(n)
 }
 func (rb *ReadBuffer) ReadSliceAsNullTerminatedString(n int) string {
-	bytes := rb.ReadSlice(n)
+	bytes := rb.ReadSlice(int64(n))
 	length := clen2(bytes)
 	return string(bytes[:length])
 }
@@ -111,10 +123,10 @@ func (rb *ReadBuffer) ReadNextFloat32() float32 {
 	return math.Float32frombits(uint32(rb.ReadNextInt(4)))
 }
 
-func (rb *ReadBuffer) ReadNextAsFloat32Array(n int) []float32 {
+func (rb *ReadBuffer) ReadNextAsFloat32Array(n int64) []float32 {
 	floats := make([]float32, n)
 	err := binary.Read(rb.file, binary.LittleEndian, &floats)
 	rb.checkError(err)
-	rb.offset += n * 4
+	rb.offset += int64(n) * 4
 	return floats
 }
