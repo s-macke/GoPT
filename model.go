@@ -10,16 +10,17 @@ type match_t struct {
 }
 
 type Model struct {
+	vocab *Vocabulary
+
 	hparams HyperParams
 	context []int
 	here    int
 
 	emptytoken int
-	lnf_g      *Tensor
-	lnf_b      *Tensor
-	wte        *Tensor // token's wordvector (wte)
-	wpe        *Tensor // positional salt (wpe)
-	layers     []*layer
+	embedding  *Tensor // token embeddings
+	norm_f     *Tensor
+
+	layers []*layer
 
 	currwv []float32
 
@@ -29,34 +30,46 @@ type Model struct {
 }
 
 //go:noinline
-func NewModel(params HyperParams) *Model {
+func NewModel(vocabulary *Vocabulary) *Model {
 	m := new(Model)
-	m.hparams = params
-	m.context = make([]int, m.hparams.CTXSIZE)
+	m.vocab = vocabulary
 
-	m.layers = make([]*layer, m.hparams.NUMLAYERS)
-	for i := 0; i < m.hparams.NUMLAYERS; i++ {
-		m.layers[i] = newLayer(m.hparams.WVSIZE, m.hparams.CTXSIZE, m.hparams.NUMHEADS)
+	m.embedding = FindTensor("embedding.weight")
+	m.hparams.NUMTOKENS = m.embedding.shape[0]
+	m.hparams.WVSIZE = m.embedding.shape[1]
+	m.embedding.Transpose()
+
+	m.norm_f = FindTensor("norm_f.weight")
+
+	m.layers = make([]*layer, 0)
+	m.hparams.NUMLAYERS = 0
+	for i := 0; ; i++ {
+		layer := newLayer()
+		t := FindTensor(fmt.Sprintf("layers.%d.mixer.conv1d.bias", i))
+		if t == nil {
+			break
+		}
+		m.hparams.NUMLAYERS++
+		layer.conv1d_bias = FindTensor(fmt.Sprintf("layers.%d.mixer.conv1d.bias", i))
+		m.layers = append(m.layers, layer)
 	}
-	m.currwv = make([]float32, m.hparams.WVSIZE)
-
-	m.temperature = 1.0
-
-	m.matchlist = make([]match_t, MAXNUMMATCHES)
-
-	//m.emptytoken = Translate("<|endoftext|>")[0]
-	m.emptytoken = 0 // TODO
-
-	m.SetTokens([]int{})
-	m.wte = FindTensor("tok_embeddings.weight")
-	m.wte.Dequantize()
+	fmt.Printf("%+v\n", m.hparams)
 
 	/*
-		m.lnf_b = FindTensor("ln_f/b")
-		m.lnf_g = FindTensor("ln_f/g")
-		m.wte = FindTensor("wte")
-		m.wpe = FindTensor("wpe")
+		for i := 0; i < m.hparams.NUMLAYERS; i++ {
+			m.layers[i] = newLayer(m.hparams.WVSIZE, m.hparams.CTXSIZE, m.hparams.NUMHEADS)
+		}
+		m.currwv = make([]float32, m.hparams.WVSIZE)
+	*/
+	m.temperature = 1.0
+	m.matchlist = make([]match_t, MAXNUMMATCHES)
 
+	//m.emptytoken = Tokenize("<|endoftext|>")[0]
+	//m.emptytoken = 0 // TODO
+
+	//m.SetTokens([]int{})
+
+	/*
 		for layeri := 0; layeri < m.hparams.NUMLAYERS; layeri++ {
 			m.layers[layeri].ln1_g = FindTensor(fmt.Sprintf("h%d/ln_1/g", layeri))
 			m.layers[layeri].ln1_b = FindTensor(fmt.Sprintf("h%d/ln_1/b", layeri))
@@ -87,43 +100,49 @@ func (m *Model) SetTemperature(temperature float32) {
 }
 
 func (m *Model) SetTokens(tokens []int) {
-	for i := 0; i < m.hparams.CTXSIZE; i++ {
-		m.context[i] = m.emptytoken
-	}
-	for i, t := range tokens {
-		m.context[i] = t
-	}
-	m.here = len(tokens)
+	/*
+		for i := 0; i < m.hparams.CTXSIZE; i++ {
+			m.context[i] = m.emptytoken
+		}
+		for i, t := range tokens {
+			m.context[i] = t
+		}
+		m.here = len(tokens)
+	*/
 }
 
 func (m *Model) RunModelForSlot(slot int) {
-	// token vector with positional encoding
-	for i := 0; i < m.hparams.WVSIZE; i++ {
-		m.currwv[i] = m.wte.Get2D(i, m.context[slot]) + m.wpe.Get2D(i, slot)
-	}
-	for i := 0; i < m.hparams.NUMLAYERS; i++ {
-		m.layers[i].runLayer(m.currwv[:], slot)
-	}
+	/*
+		// token vector with positional encoding
+		for i := 0; i < m.hparams.WVSIZE; i++ {
+			m.currwv[i] = m.wte.Get2D(i, m.context[slot]) + m.wpe.Get2D(i, slot)
+		}
+		for i := 0; i < m.hparams.NUMLAYERS; i++ {
+			m.layers[i].runLayer(m.currwv[:], slot)
+		}
+
+	*/
 	/* normalize the final result */
-	Normalize(m.currwv[:], m.currwv[:], m.lnf_b.data, m.lnf_g.data)
+	//Normalize(m.currwv[:], m.currwv[:], m.lnf_b.data, m.lnf_g.data)
 }
 
 func (m *Model) Run() {
+	// First read the context
 	for i := 0; i < m.here-1; i++ {
 		m.RunModelForSlot(i)
-		fmt.Printf(vocab[m.context[i]])
+		fmt.Printf(m.vocab.DetokenizeSingle(m.context[i]))
 	}
-	fmt.Printf(vocab[m.context[m.here-1]])
+	// Then generate
+	fmt.Printf(m.vocab.sortedVocab[m.context[m.here-1]])
 	for i := m.here - 1; i < 1000; i++ {
 		m.RunModelForSlot(i)
 		m.matchToTokens(m.currwv[:], m.matchlist, MAXNUMMATCHES, m.temperature)
-		match := pickmatch(m.matchlist, MAXNUMMATCHES, 0.0)
+		match := pickMatch(m.matchlist, MAXNUMMATCHES, 0.0)
 		tok := m.matchlist[match].token
 		if tok == m.emptytoken {
 			break
 		}
-
-		fmt.Printf(vocab[tok])
+		fmt.Printf(m.vocab.DetokenizeSingle(tok))
 		m.context[i+1] = tok
 	}
 }

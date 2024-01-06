@@ -5,25 +5,30 @@ import (
 	"math"
 )
 
+func tokenizeSingle(m *Model, str string) int {
+	tokens := m.vocab.Tokenize(str)
+	if len(tokens) > 1 {
+		panic("More than one token for string " + str)
+	}
+	return tokens[0]
+}
+
 func (m *Model) Add(token1, token2, token3 int) {
 	//token1 - token2 + token3
 	wv := make([]float32, m.hparams.WVSIZE)
 	for i := 0; i < m.hparams.WVSIZE; i++ {
-		wv[i] = m.wte.Get2D(i, token1) - m.wte.Get2D(i, token2) + m.wte.Get2D(i, token3)
+		wv[i] = m.embedding.Get2D(i, token1) - m.embedding.Get2D(i, token2) + m.embedding.Get2D(i, token3)
 	}
 	m.matchToTokens(wv, m.matchlist, 20, 1.)
-	for i := 0; i < 20; i++ {
-		fmt.Println(vocab[m.matchlist[i].token])
+	for i := 0; i < 10; i++ {
+		fmt.Println(m.vocab.DetokenizeSingle(m.matchlist[i].token))
 	}
 }
 
 // https://blog.esciencecenter.nl/king-man-woman-king-9a7fd2935a85
 func (m *Model) wordMath(str1, str2, str3 string) {
 	fmt.Println("-----", str1, str2, str3)
-	fmt.Println(Translate(str1))
-	fmt.Println(Translate(str2))
-	fmt.Println(Translate(str3))
-	m.Add(Translate(str1)[0], Translate(str2)[0], Translate(str3)[0])
+	m.Add(tokenizeSingle(m, str1), tokenizeSingle(m, str2), tokenizeSingle(m, str3))
 	fmt.Println("-----")
 }
 
@@ -42,9 +47,9 @@ func compare(token1, token2 int, m *Model) float32 {
 		//diff := m.wte.Get2D(i, token1) - m.wte.Get2D(i, token2)
 		//dist1 += diff * diff
 		//sp += m.wte.Get2D(token1, i) * m.wte.Get2D(token2, i)
-		sp += m.wte.Get2D(i, token1) * m.wte.Get2D(i, token2)
-		dist1 += m.wte.Get2D(i, token1) * m.wte.Get2D(i, token1)
-		dist2 += m.wte.Get2D(i, token2) * m.wte.Get2D(i, token2)
+		sp += m.embedding.Get2D(i, token1) * m.embedding.Get2D(i, token2)
+		dist1 += m.embedding.Get2D(i, token1) * m.embedding.Get2D(i, token1)
+		dist2 += m.embedding.Get2D(i, token2) * m.embedding.Get2D(i, token2)
 	}
 	//return sp
 	return sp / (float32(math.Sqrt(float64(dist1))) * float32(math.Sqrt(float64(dist2))))
@@ -53,12 +58,12 @@ func compare(token1, token2 int, m *Model) float32 {
 
 func similarity(m *Model) {
 	tokens := make([]int, 0)
-	tokens = append(tokens, Translate(" Blue")[0])
-	tokens = append(tokens, Translate(" Green")[0])
-	tokens = append(tokens, Translate(" Red")[0])
-	tokens = append(tokens, Translate("1")[0])
-	tokens = append(tokens, Translate("2")[0])
-	tokens = append(tokens, Translate("3")[0])
+	tokens = append(tokens, tokenizeSingle(m, " Blue"))
+	tokens = append(tokens, tokenizeSingle(m, " Green"))
+	tokens = append(tokens, tokenizeSingle(m, " Red"))
+	tokens = append(tokens, tokenizeSingle(m, "1"))
+	tokens = append(tokens, tokenizeSingle(m, "2"))
+	tokens = append(tokens, tokenizeSingle(m, "3"))
 	for i := 0; i < len(tokens); i++ {
 		for j := 0; j < len(tokens); j++ {
 			fmt.Printf("%7.3f ", compare(tokens[i], tokens[j], m))

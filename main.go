@@ -2,37 +2,36 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 )
 
 func main() {
-	// Check https://github.com/karpathy/llama2.c/blob/master/run.c
-	// https://github.com/mukel/llama2.java
-	// for the original code
-
-	//LoadBin("ggml-alpaca-7b-q4.bin")
-	//LoadGGML("llama-2-7b-chat.ggmlv3.q2_K.bin")
-	//LoadSafetensors("../llama2/gptq/gptq_model-4bit-128g.safetensors")
 	LoadSafetensors("mamba.safetensors")
+	vocab := NewVocabulary("mamba_vocab.json")
+	fmt.Println("Vocabulary size:", len(vocab.vocab))
 
 	runtime.GC()
 	for _, t := range bmodel.tensors {
 		t.ToFloat32()
 	}
+	runtime.GC()
 
-	os.Exit(1)
+	m := NewModel(vocab)
 
-	m := NewModel(bmodel.hparams)
+	//tokens := Tokenize("Building a website can be done in 10 simple steps:")
+	//fmt.Println(tokens)
 
-	tokens := Translate("Building a website can be done in 10 simple steps:")
+	tokens := vocab.Tokenize("Mamba is the")
 	fmt.Println(tokens)
+	fmt.Println(vocab.Detokenize(tokens))
+	//fmt.Println(vocab.Detokenize([]int{46, 31834, 310, 253}))
 
 	// some experiments with word vectors
 	similarity(m)
 	relation(m)
+
 	/*
-		tokens := Translate(" Suddenly, a magical floppy disk")
+		tokens := Tokenize(" Suddenly, a magical floppy disk")
 		m.SetTemperature(1.2)
 		m.SetTokens(tokens)
 		m.Run()

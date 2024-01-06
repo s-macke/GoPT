@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/binary"
 	"github.com/x448/float16"
 	"math"
 	"unsafe"
@@ -12,9 +11,6 @@ type TENSORTYPE int64
 const (
 	F32 TENSORTYPE = 0
 	F16 TENSORTYPE = 1
-	Q4  TENSORTYPE = 2
-	Q2  TENSORTYPE = 3
-	Q6  TENSORTYPE = 4
 )
 
 type Tensor struct {
@@ -89,55 +85,6 @@ func (t *Tensor) GetRow2D(j int) []float32 {
 	}
 	offset := j * t.shape[0]
 	return t.data[offset : offset+t.shape[0]]
-}
-
-func (t *Tensor) Dequantize() {
-	if t.tensortype != Q4 {
-		panic("Dequantize: t.tensortype != Q4")
-	}
-	if len(t.shape) == 2 {
-		t.Dequantize2D()
-	} else {
-		panic("Dequantize for 1D not implemented")
-		//t.Dequantize1D()
-	}
-}
-
-func (t *Tensor) Dequantize2D() {
-	t.data = make([]float32, t.shape[0]*t.shape[1])
-	n := t.shape[0] * 5 / 8
-	for j := 0; j < t.shape[1]; j++ {
-		t.Dequantize1D(t.dataq[j*n:(j+1)*n], t.data[j*t.shape[0]:(j+1)*t.shape[0]])
-		//t.data[i*t.shape[1]+j] = float32(t.dataq4[i*t.shape[1]+j]) / 16
-	}
-}
-
-func (t *Tensor) Dequantize1D(input []byte, output []float32) {
-	//fmt.Println(len(input), len(output))
-	const QK = 32
-
-	nb := len(output) / QK // number of blocks
-	bs := QK/2 + 4         // block size
-
-	pd := input[0:]
-	pb := input
-
-	for i := 0; i < nb; i++ {
-		d := math.Float32frombits(binary.LittleEndian.Uint32(pd[i*bs:]))
-		pp := pb[i*bs+4:]
-
-		for j := 0; j < QK/2; j++ {
-			vi0 := pp[j] & 0xF
-			vi1 := (pp[j] >> 4) & 0xF
-			output[i*QK+j*2+0] = (float32(vi0) - 8.) * d
-			output[i*QK+j*2+1] = (float32(vi1) - 8.) * d
-		}
-		//fmt.Println(d)
-	}
-
-	// dequantize row q4_0 k=4096 QK=32 sizeof(float)=4 bs=20
-
-	//panic("Dequantize1D not implemented")
 }
 
 const EPSILON = 0.0000001
