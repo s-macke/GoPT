@@ -2,28 +2,20 @@ package main
 
 type layer struct {
 	// read only
-	ln1_b, ln1_g, ln2_b, ln2_g *Tensor
-	mlp_cfc_b, mlp_cfc_w       *Tensor
-	mlp_cproj_b, mlp_cproj_w   *Tensor
-	attn_cattn_b, attn_cattn_w *Tensor
-	attn_cproj_b, attn_cproj_w *Tensor
-
-	WVSIZE   int
-	CTXSIZE  int
-	NUMHEADS int
-	// read/write
-	key   []float32 // key vectors
-	value []float32 // value vectors
+	conv1d_weight  *Tensor
+	conv1d_bias    *Tensor
+	dt_proj_weight *Tensor
+	dt_proj_bias   *Tensor
+	A_log          *Tensor
+	D              *Tensor
+	in_proj        *Tensor
+	x_proj         *Tensor
+	out_proj       *Tensor
+	norm           *Tensor
 }
 
-func newLayer(WVSIZE int, CTXSIZE int, NUMHEADS int) *layer {
-	return &layer{
-		WVSIZE:   WVSIZE,
-		CTXSIZE:  CTXSIZE,
-		NUMHEADS: NUMHEADS,
-		key:      make([]float32, WVSIZE*CTXSIZE),
-		value:    make([]float32, WVSIZE*CTXSIZE),
-	}
+func newLayer() *layer {
+	return &layer{}
 }
 
 // runLayer runs a single layer of the transformer

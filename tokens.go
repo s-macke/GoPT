@@ -15,7 +15,7 @@ func (m *Model) matchToTokens(wv []float32, o []match_t, num int, temp float32) 
 	t := make([]match_t, m.hparams.NUMTOKENS)
 
 	for i := 0; i < m.hparams.NUMTOKENS; i++ {
-		cossim := scalarProduct(wv, m.wte.GetRow2D(i)) // cosine similarity
+		cossim := scalarProduct(wv, m.embedding.GetRow2D(i)) // cosine similarity
 		t[i].prob = cossim / temp
 		t[i].token = i
 	}
@@ -40,13 +40,13 @@ func (m *Model) matchToTokens(wv []float32, o []match_t, num int, temp float32) 
 	}
 }
 
-// pickmatch picks a random match from the match list.
+// pickMatch picks a random match from the match list.
 // tokenflags[] allows for some token-specific options.
 // list is the list of matches
 // sz is the number of matches in the list
 // minp is the minimum probability to consider.
 // returns the index of the match chosen.
-func pickmatch_(list []match_t, sz int, minp float32) int {
+func pickMatch(list []match_t, sz int, minp float32) int {
 	var i int
 
 	if list[0].prob < minp || list[0].prob > 0.98 {
@@ -65,9 +65,4 @@ func pickmatch_(list []match_t, sz int, minp float32) int {
 		}
 	}
 	return 0
-}
-
-func pickmatch(list []match_t, sz int, minp float32) int {
-	i := pickmatch_(list, sz, minp)
-	return i
 }
