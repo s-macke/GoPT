@@ -18,30 +18,45 @@ type Tensor struct {
 	shape      []int
 	tensortype TENSORTYPE
 	data       []float32
-	dataq      []byte
+	dataq      []byte // quantized data
 }
 
-func (t *Tensor) ToFloat32() {
-	if t.tensortype == F32 {
-		return
-	}
-	if t.tensortype != F16 {
-		panic("ToFloat32: t.tensortype != F16")
-	}
+func (t *Tensor) bytesToFloat32() {
 	size := t.GetSize()
-	//fmt.Println(size)
+	t.data = make([]float32, size)
+
+	data := unsafe.Slice((*uint32)(unsafe.Pointer(&t.dataq[0])), size)
+	for i := int64(0); i < size; i++ {
+		//bits := binary.LittleEndian.Uint32(t.dataq[i*4:])
+		t.data[i] = math.Float32frombits(data[i])
+	}
+	t.dataq = nil
+	t.tensortype = F32
+}
+
+func (t *Tensor) bytesFromFloat16ToFloat32() {
+	size := t.GetSize()
 	newdata := make([]float32, size)
 
 	data := unsafe.Slice((*uint16)(unsafe.Pointer(&t.dataq[0])), size)
 	for i := int64(0); i < size; i++ {
 		//newdata[i] = float16.Frombits(uint16(t.dataq[i*2+0]) | uint16(t.dataq[i*2+1])<<8).Float32()
 		newdata[i] = float16.Frombits(data[i]).Float32()
-		//newdata[i] = float32(data[i])
-		//newdata[i] = 0.
 	}
 	t.dataq = nil
 	t.data = newdata
 	t.tensortype = F32
+}
+
+func (t *Tensor) ToFloat32() {
+	switch t.tensortype {
+	case F32:
+		t.bytesToFloat32()
+	case F16:
+		t.bytesFromFloat16ToFloat32()
+	default:
+		panic("tensortype unknown")
+	}
 }
 
 func (t *Tensor) GetSize() int64 {
@@ -76,49 +91,34 @@ func (t *Tensor) Get2D(i, j int) float32 {
 		panic("Get2D: len(t.shape) != 2")
 	}
 	//return t.data[i*t.shape[1]+j]
-	return t.data[j*t.shape[0]+i]
+	return t.data[j*t.shape[1]+i]
 }
 
 func (t *Tensor) GetRow2D(j int) []float32 {
 	if len(t.shape) != 2 {
 		panic("Get2D: len(t.shape) != 2")
 	}
-	offset := j * t.shape[0]
-	return t.data[offset : offset+t.shape[0]]
+	offset := j * t.shape[1]
+	return t.data[offset : offset+t.shape[1]]
 }
 
-const EPSILON = 0.0000001
-
-// Normalize normalizes the input vector x and stores the result in o.
-func Normalize(o, x, b, g []float32) {
-	var mean float32 = 0.
-	var smean float32 = 0.
-	var muller float32 = 0.
-
-	SIZE := len(x)
-
-	for i := 0; i < SIZE; i++ {
-		mean += x[i]
+// Root Mean Square Layer Normalization together with weight multiplication
+// https://en.wikipedia.org/wiki/Root_mean_square
+func RMSNorm(x []float32, weight []float32) {
+	n := len(x)
+	if n != len(weight) {
+		panic("RMSNorm: len(x) != len(weight)")
 	}
-	mean /= float32(SIZE)
-	for i := 0; i < SIZE; i++ {
-		a := x[i] - mean
-		smean += a * a
-	}
-	smean /= float32(SIZE)
-	if smean < EPSILON {
-		smean = EPSILON
+	const eps = 1e-5
+
+	var sum float32 = 0
+	for i := 0; i < n; i++ {
+		sum += x[i] * x[i]
 	}
 
-	muller = float32(math.Sqrt(1. / float64(smean)))
-	if b != nil {
-		for i := 0; i < SIZE; i++ {
-			o[i] = (x[i]-mean)*muller*g[i] + b[i]
-		}
-	} else {
-		for i := 0; i < SIZE; i++ {
-			o[i] = (x[i] - mean) * muller * g[i]
-		}
+	rsqrt := 1. / float32(math.Sqrt(float64(sum/float32(n)+eps)))
+	for i := 0; i < n; i++ {
+		x[i] *= weight[i] * rsqrt
 	}
 }
 

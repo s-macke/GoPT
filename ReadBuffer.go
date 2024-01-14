@@ -81,8 +81,11 @@ func (rb *ReadBuffer) Length() int {
 
 func (rb *ReadBuffer) ReadSlice(n int64) []byte {
 	b := make([]byte, n)
-	_, err := rb.file.Read(b)
+	readBytes, err := rb.file.Read(b)
 	rb.checkError(err)
+	if readBytes != int(n) {
+		panic("ReadSlice: readBytes != n")
+	}
 	//fmt.Println("ReadSlice", n, rb.offset, len(rb.b))
 	rb.offset = rb.offset + n
 	return b

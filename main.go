@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	LoadSafetensors("mamba.safetensors")
+	LoadSafetensors("mambaf32.safetensors")
 	vocab := NewVocabulary("mamba_vocab.json")
 	fmt.Println("Vocabulary size:", len(vocab.vocab))
 
@@ -21,19 +21,17 @@ func main() {
 	//tokens := Tokenize("Building a website can be done in 10 simple steps:")
 	//fmt.Println(tokens)
 
-	tokens := vocab.Tokenize("Mamba is the")
-	fmt.Println(tokens)
-	fmt.Println(vocab.Detokenize(tokens))
+	//tokens := vocab.Tokenize("Mamba is the")
+	//fmt.Println(tokens)
+	//fmt.Println(vocab.Detokenize(tokens))
 	//fmt.Println(vocab.Detokenize([]int{46, 31834, 310, 253}))
 
 	// some experiments with word vectors
-	similarity(m)
-	relation(m)
+	//similarity(m)
+	//relation(m)
 
-	/*
-		tokens := Tokenize(" Suddenly, a magical floppy disk")
-		m.SetTemperature(1.2)
-		m.SetTokens(tokens)
-		m.Run()
-	*/
+	//tokens := Tokenize(" Suddenly, a magical floppy disk")
+
+	m.SetTemperature(1.0)
+	m.Run("Mamba is the")
 }
