@@ -12,9 +12,9 @@ import (
 // num is the number of outputs in the output vector with the highest probability
 // temp is the temperature
 func (m *Model) matchToTokens(wv []float32, o []match_t, num int, temp float32) {
-	t := make([]match_t, m.hparams.NUMTOKENS)
+	t := make([]match_t, m.hparams.vocabSize)
 
-	for i := 0; i < m.hparams.NUMTOKENS; i++ {
+	for i := 0; i < m.hparams.vocabSize; i++ {
 		cossim := scalarProduct(wv, m.embedding.GetRow2D(i)) // cosine similarity
 		t[i].prob = cossim / temp
 		t[i].token = i

@@ -1,20 +1,34 @@
 package main
 
+import (
+	"fmt"
+	"os"
+)
+
 type layer struct {
 	// read only
-	conv1d_weight  *Tensor
-	conv1d_bias    *Tensor
-	dt_proj_weight *Tensor
-	dt_proj_bias   *Tensor
+	// Step 1
+	norm *Tensor
+
+	// Step 2
+	in_proj *Tensor
+
+	// Step 3
+	conv1d_weight *Tensor
+	conv1d_bias   *Tensor
+
+	// Step 4 (SSM)
 	A_log          *Tensor
 	D              *Tensor
-	in_proj        *Tensor
 	x_proj         *Tensor
-	out_proj       *Tensor
-	norm           *Tensor
+	dt_proj_weight *Tensor
+	dt_proj_bias   *Tensor
+
+	// Step 5
+	out_proj *Tensor
 }
 
-func newLayer() *layer {
+func NewLayer() *layer {
 	return &layer{}
 }
 
@@ -22,10 +36,14 @@ func newLayer() *layer {
 // x is the input vector, the word embedding of the current token
 // slot is the index of the current token in the context
 func (l *layer) runLayer(x []float32, slot int) {
+	RMSNorm(x, l.norm.data)
+	fmt.Println(x)
+	os.Exit(1)
+
 	/*
-		var query = make([]float32, l.WVSIZE) // query vectors are only needed locally
-		var tmp = make([]float32, l.WVSIZE)   // tmp space for operations
-		var xn = make([]float32, l.WVSIZE)
+		var query = make([]float32, l.dModel) // query vectors are only needed locally
+		var tmp = make([]float32, l.dModel)   // tmp space for operations
+		var xn = make([]float32, l.dModel)
 
 		Normalize(xn[:], x, l.ln1_b.data, l.ln1_g.data)
 
@@ -33,15 +51,15 @@ func (l *layer) runLayer(x []float32, slot int) {
 
 		b := l.attn_cattn_b
 		w := l.attn_cattn_w
-		for i := 0; i < l.WVSIZE*3; i++ {
+		for i := 0; i < l.dModel*3; i++ {
 			a := b.data[i] + scalarProduct(xn[:], w.GetRow2D(i))
 
-			if i < l.WVSIZE {
+			if i < l.dModel {
 				query[i] = a
-			} else if i < l.WVSIZE*2 {
-				l.key[slot*l.WVSIZE+(i-l.WVSIZE)] = a
+			} else if i < l.dModel*2 {
+				l.key[slot*l.dModel+(i-l.dModel)] = a
 			} else {
-				l.value[(i-l.WVSIZE*2)*CTXSIZE+slot] = a
+				l.value[(i-l.dModel*2)*CTXSIZE+slot] = a
 			}
 		}
 
@@ -50,7 +68,7 @@ func (l *layer) runLayer(x []float32, slot int) {
 		for h := 0; h < l.NUMHEADS; h++ {
 			// query * keys = attentions
 			for i := 0; i <= slot; i++ {
-				a := scalarProduct(query[h*HEADSIZE:(h+1)*HEADSIZE], l.key[i*l.WVSIZE+h*HEADSIZE:i*l.WVSIZE+(h+1)*HEADSIZE])
+				a := scalarProduct(query[h*HEADSIZE:(h+1)*HEADSIZE], l.key[i*l.dModel+h*HEADSIZE:i*l.dModel+(h+1)*HEADSIZE])
 				att[i] = a * RSQRT_HEADSIZE
 			}
 
@@ -83,29 +101,28 @@ func (l *layer) runLayer(x []float32, slot int) {
 		// projection (WVSIZExWVSIZE)
 		w = l.attn_cproj_w
 		b = l.attn_cproj_b
-		for i := 0; i < l.WVSIZE; i++ {
-			x[i] += b.data[i] + scalarProduct(tmp[:], w.data[l.WVSIZE*i:l.WVSIZE*(i+1)])
+		for i := 0; i < l.dModel; i++ {
+			x[i] += b.data[i] + scalarProduct(tmp[:], w.data[l.dModel*i:l.dModel*(i+1)])
 		}
 
 		// normalize again
 		Normalize(xn[:], x, l.ln2_b.data, l.ln2_g.data)
 
-		// multilayer perceptron (WVSIZE -> WVSIZE*4 -> WVSIZE)
+		// multilayer perceptron (dModel -> dModel*4 -> dModel)
 		w = l.mlp_cfc_w
 		b = l.mlp_cfc_b
-		mlp := make([]float32, l.WVSIZE*4)
+		mlp := make([]float32, l.dModel*4)
 
-		for i := 0; i < l.WVSIZE*4; i++ {
-			a := b.data[i] + scalarProduct(xn[:], w.data[l.WVSIZE*i:l.WVSIZE*(i+1)])
+		for i := 0; i < l.dModel*4; i++ {
+			a := b.data[i] + scalarProduct(xn[:], w.data[l.dModel*i:l.dModel*(i+1)])
 			a = 0.5 * a * (1. + float32(math.Tanh(float64(0.7978845676080871*(a+0.044715*a*a*a))))) // gelu2 ?
 			mlp[i] = a
 		}
 
 		w = l.mlp_cproj_w
 		b = l.mlp_cproj_b
-		for i := 0; i < l.WVSIZE; i++ {
-			x[i] += b.data[i] + scalarProduct(mlp[:], w.data[l.WVSIZE*4*i:l.WVSIZE*4*(i+1)])
+		for i := 0; i < l.dModel; i++ {
+			x[i] += b.data[i] + scalarProduct(mlp[:], w.data[l.dModel*4*i:l.dModel*4*(i+1)])
 		}
 	*/
-
 }

@@ -35,6 +35,7 @@ func NewVocabulary(filename string) *Vocabulary {
 	vocabulary.sortedVocab = make([]string, len(v))
 	for token, index := range v {
 		tok := strings.Replace(token, "Ġ", " ", -1)
+		tok = strings.Replace(tok, "Ċ", "\n", -1)
 		vocabulary.vocab[tok] = index
 		vocabulary.sortedVocab[index] = tok
 	}
