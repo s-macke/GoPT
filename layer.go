@@ -6,6 +6,8 @@ import (
 )
 
 type layer struct {
+	hparams HyperParams
+
 	// read only
 	// Step 1
 	norm *Tensor
@@ -28,8 +30,10 @@ type layer struct {
 	out_proj *Tensor
 }
 
-func NewLayer() *layer {
-	return &layer{}
+func NewLayer(hparams HyperParams) *layer {
+	return &layer{
+		hparams: hparams,
+	}
 }
 
 // runLayer runs a single layer of the transformer
@@ -38,6 +42,9 @@ func NewLayer() *layer {
 func (l *layer) runLayer(x []float32, slot int) {
 	RMSNorm(x, l.norm.data)
 	fmt.Println(x)
+	fmt.Println(l.in_proj.shape)
+	//x_and_res := New2DTensor(l.in_proj.shape[0], l.hparams.dModel)
+
 	os.Exit(1)
 
 	/*

@@ -41,7 +41,7 @@ func NewModel(vocabulary *Vocabulary) *Model {
 	m.layers = make([]*layer, 0)
 	m.hparams.nLayer = 0
 	for i := 0; ; i++ {
-		layer := NewLayer()
+		layer := NewLayer(m.hparams)
 		if DoesExistTensorByName(fmt.Sprintf("layers.%d.mixer.conv1d.weight", i)) == false {
 			break
 		}
