@@ -21,6 +21,13 @@ type Tensor struct {
 	dataq      []byte // quantized data
 }
 
+func New2DTensor(n int, m int) *Tensor {
+	t := Tensor{}
+	t.shape = []int{n, m}
+	t.data = make([]float32, n*m)
+	return &t
+}
+
 func (t *Tensor) bytesToFloat32() {
 	size := t.GetSize()
 	t.data = make([]float32, size)
