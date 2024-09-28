@@ -9,3 +9,6 @@ https://github.com/ajhalthor/Transformer-Neural-Network/blob/main/transformer.py
 
 ## Mamba written in fortran
 https://github.com/rbitr/llm.f90/tree/master/ssm
+
+## Llama 3.2
+https://huggingface.co/meta-llama/Llama-3.2-1B

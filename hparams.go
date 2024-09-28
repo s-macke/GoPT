@@ -4,14 +4,15 @@ type HyperParams struct {
 	nLayer    int
 	vocabSize int
 	dModel    int
-	dInner    int
-	dtRank    int
+	ctxsize   int
+	NUMHEADS  int
+	HEADSIZE  int
 }
 
 func (h *HyperParams) Init() {
-	expand := 2 // expansion factor
-	h.dInner = expand * h.dModel
-	h.dtRank = h.dModel / 16
+	// WVSIZE = dModel = 768
+	h.NUMHEADS = 12 // number of attention heads WVSIZE / HEADSIZE
+	h.HEADSIZE = 64
 }
 
 // hyper parameters for each model

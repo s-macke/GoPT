@@ -73,6 +73,10 @@ func LoadSafetensors(filename string) {
 			size *= 2
 			//fmt.Println(safeTensor.DataOffsets[1]-safeTensor.DataOffsets[0], size)
 			t.tensortype = F16
+		case "BF16":
+			size *= 2
+			//fmt.Println(safeTensor.DataOffsets[1]-safeTensor.DataOffsets[0], size)
+			t.tensortype = BF16
 		default:
 			panic("Unknown type " + safeTensor.Dtype)
 		}
