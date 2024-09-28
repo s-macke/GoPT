@@ -15,7 +15,7 @@ func (m *Model) matchToTokens(wv []float32, o []match_t, num int, temp float32) 
 	t := make([]match_t, m.hparams.vocabSize)
 
 	for i := 0; i < m.hparams.vocabSize; i++ {
-		cossim := scalarProduct(wv, m.embedding.GetRow2D(i)) // cosine similarity
+		cossim := ScalarProduct(wv, m.embedding.GetRow2D(i)) // cosine similarity
 		t[i].prob = cossim / temp
 		t[i].token = i
 	}
@@ -25,11 +25,11 @@ func (m *Model) matchToTokens(wv []float32, o []match_t, num int, temp float32) 
 	})
 
 	// softmax
-	max := t[0].prob
+	softmax := t[0].prob
 
 	var sum float32 = 0
 	for i := 0; i < num; i++ {
-		a := float32(math.Exp(float64(t[i].prob - max)))
+		a := float32(math.Exp(float64(t[i].prob - softmax)))
 		t[i].prob = a
 		sum += a
 	}

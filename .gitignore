@@ -16,6 +16,7 @@
 
 GoPT
 
-*.bin
+# model data
+*.safetensors
+*.json
 
-models/*
